@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Ensure proper scaling on mobile devices -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>App di Tracciamento Menu</title>
+    <!-- React and Babel CDN -->
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <!-- Tailwind CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      /* Additional custom styles if needed */
+    </style>
+  </head>
+  <body>
+    <!-- Hidden audio element for action sounds -->
+    <audio id="actionSound" preload="auto">
+      <source src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YRAAAAAA" type="audio/wav" />
+    </audio>
+    <div id="root"></div>
+    <script type="text/babel">
+      // Helper function to format dates.
+      // If forFileName is true, returns "dd-mm-yy_hh-mm-ss"
+      // Otherwise, returns "dd/mm/yy hh:mm:ss"
+      function formatDate(date, forFileName = false) {
+        const dd = String(date.getDate()).padStart(2, "0");
+        const mm = String(date.getMonth() + 1).padStart(2, "0");
+        const yy = String(date.getFullYear()).slice(-2);
+        const hh = String(date.getHours()).padStart(2, "0");
+        const min = String(date.getMinutes()).padStart(2, "0");
+        const ss = String(date.getSeconds()).padStart(2, "0");
+        return forFileName ? `${dd}-${mm}-${yy}_${hh}-${min}-${ss}` : `${dd}/${mm}/${yy} ${hh}:${min}:${ss}`;
+      }
+
+      // -----------------------------
+      // Translations Object
+      // -----------------------------
+      const translations = {
+        en: {
+          appTitle: "Menu Tracker App",
+          onboarding: {
+            welcome: "Welcome to Menu Tracker App!",
+            line1: "Tap the table name (🍽️) to edit it.",
+            line2: "Use 'Add Person' to add new participants.",
+            line3: "Add orders with 'Add Item'. Share or copy orders as needed.",
+            line4: "Save your data with 'Save State' and reset if needed."
+          },
+          instructions:
+            "Instructions: 1. Set the table name. 2. Add people to the table. 3. Add dishes using the inline 'Add Item' button. For shared items, use the 'Share with...' dropdown. Use 'Copy to...' to create a separate copy.",
+          saveState: "Save State",
+          resetState: "Reset State",
+          viewReceipt: "View Receipt",
+          settings: "Settings",
+          exportSession: "Export Session",
+          importSession: "Import Session",
+          addPerson: "Add Person",
+          addItem: "Add Item",
+          addTable: "Add Table",
+          delete: "Delete",
+          overallTotal: "Overall Total",
+          subtotal: "Subtotal",
+          extra: "Extra",
+          tableSubtotal: "Table Subtotal",
+          tableTotal: "Table Total",
+          shareWithOption: "Share with...",
+          controlsToggle: "☰",
+          feedback: "Feedback"
+        },
+        it: {
+          appTitle: "App di Tracciamento Menu",
+          onboarding: {
+            welcome: "Benvenuto nell'App di Tracciamento Menu!",
+            line1: "Tocca il nome del tavolo (🍽️) per modificarlo.",
+            line2: "Usa 'Aggiungi Persona' per inserire nuovi partecipanti.",
+            line3: "Aggiungi piatti con 'Aggiungi ordine'. Condividi o copia i piatti se necessario.",
+            line4: "Salva i dati con 'Salva' e azzera se necessario."
+          },
+          instructions:
+            "Istruzioni: 1. Imposta il nome del tavolo. 2. Aggiungi persone al tavolo. 3. Aggiungi piatti con il pulsante 'Aggiungi ordine'. Per gli elementi condivisi, usa il menu 'Condividi con...'. Usa 'Copia su...' per aggiungere lo stesso ordine ad un'altra persona.",
+          saveState: "Salva",
+          resetState: "Azzera",
+          viewReceipt: "Visualizza Ricevuta",
+          settings: "Impostazioni",
+          exportSession: "Esporta Sessione",
+          importSession: "Carica Sessione",
+          addPerson: "Aggiungi persona",
+          addItem: "Aggiungi ordine",
+          addTable: "Aggiungi Tavolo",
+          delete: "Cancella",
+          overallTotal: "Totale Generale",
+          subtotal: "Subtotale",
+          extra: "Extra",
+          tableSubtotal: "Subtotale Tavolo",
+          tableTotal: "Totale Tavolo",
+          shareWithOption: "Condividi con...",
+          controlsToggle: "☰",
+          feedback: "Invia Feedback"
+        }
+      };
+
+      // -----------------------------
+      // Onboarding Modal Component
+      // -----------------------------
+      function OnboardingModal({ onClose, lang }) {
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="bg-white p-6 rounded shadow-lg max-w-sm text-center">
+              <h2 className="text-xl font-bold mb-4">{translations[lang].onboarding.welcome}</h2>
+              <p className="text-sm mb-2">• {translations[lang].onboarding.line1}</p>
+              <p className="text-sm mb-2">• {translations[lang].onboarding.line2}</p>
+              <p className="text-sm mb-2">• {translations[lang].onboarding.line3}</p>
+              <p className="text-sm mb-2">• {translations[lang].onboarding.line4}</p>
+              <button onClick={onClose} className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                Got it!
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      // -----------------------------
+      // Receipt Modal Component
+      // -----------------------------
+      function ReceiptModal({ receiptText, onClose, lang, currencySymbol }) {
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="bg-white p-6 rounded shadow-lg max-w-md w-full">
+              <h2 className="text-xl font-bold mb-4">{translations[lang].viewReceipt}</h2>
+              <pre className="bg-gray-100 p-4 rounded text-xs overflow-auto" style={{ maxHeight: "300px" }}>
+                {receiptText}
+              </pre>
+              <div className="flex justify-between mt-4">
+                <button
+                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-xs"
+                  onClick={() => {
+                    if (navigator.clipboard) {
+                      navigator.clipboard.writeText(receiptText).then(() => alert("Receipt copied to clipboard!"));
+                    } else {
+                      alert("Clipboard not supported");
+                    }
+                  }}
+                >
+                  Copy Receipt
+                </button>
+                <button className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 text-xs" onClick={onClose}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      // -----------------------------
+      // Settings Modal Component
+      // -----------------------------
+      function SettingsModal({ lang, setLang, currencySymbol, setCurrencySymbol, onClose }) {
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="bg-white p-6 rounded shadow-lg max-w-sm w-full">
+              <h2 className="text-xl font-bold mb-4">{translations[lang].settings}</h2>
+              <div className="mb-4">
+                <label className="block text-sm font-semibold mb-1">Language:</label>
+                <div className="flex items-center gap-4">
+                  <label className="inline-flex items-center">
+                    <input type="radio" className="form-radio" name="language" value="en" checked={lang === "en"} onChange={() => setLang("en")} />
+                    <span className="ml-2">English</span>
+                  </label>
+                  <label className="inline-flex items-center">
+                    <input type="radio" className="form-radio" name="language" value="it" checked={lang === "it"} onChange={() => setLang("it")} />
+                    <span className="ml-2">Italiano</span>
+                  </label>
+                </div>
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-semibold mb-1">Currency:</label>
+                <select value={currencySymbol} onChange={(e) => setCurrencySymbol(e.target.value)} className="w-full p-2 border rounded">
+                  <option value="€">Euro (€)</option>
+                  <option value="$">Dollar ($)</option>
+                  <option value="£">Pound (£)</option>
+                </select>
+              </div>
+              <div className="flex justify-end">
+                <button className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-xs" onClick={onClose}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      // -----------------------------
+      // Main App Component: MenuTracker
+      // -----------------------------
+      function MenuTracker() {
+        // Default language is Italian.
+        const [lang, setLang] = React.useState("it");
+        // Initialize groups based on default language.
+        const initialGroup =
+          lang === "it"
+            ? { id: 1, name: "Tavolo 1", isEditingName: false, people: [{ name: "Persona 1", isEditingName: false, orders: [] }] }
+            : { id: 1, name: "Table 1", isEditingName: false, people: [{ name: "Person 1", isEditingName: false, orders: [] }] };
+        const [groups, setGroups] = React.useState([initialGroup]);
+        const [charges, setCharges] = React.useState([
+          { name: "Service", percentage: 0 },
+          { name: "Tips", percentage: 0 }
+        ]);
+        const [autoSaveMessage, setAutoSaveMessage] = React.useState("");
+        const [showOnboarding, setShowOnboarding] = React.useState(false);
+        const [showReceipt, setShowReceipt] = React.useState(false);
+        const [showSettings, setShowSettings] = React.useState(false);
+        const [showControls, setShowControls] = React.useState(false);
+        const [currencySymbol, setCurrencySymbol] = React.useState("€");
+
+        // Reference for hidden file input.
+        const fileInputRef = React.useRef(null);
+
+        // Show onboarding modal if not seen before.
+        React.useEffect(() => {
+          if (!localStorage.getItem("hasSeenOnboarding")) {
+            setShowOnboarding(true);
+          }
+        }, []);
+
+        const playSound = () => {
+          const audio = document.getElementById("actionSound");
+          if (audio) {
+            audio.currentTime = 0;
+            audio.play();
+          }
+        };
+
+        // Auto-save state to Local Storage (debounced).
+        React.useEffect(() => {
+          const timeout = setTimeout(() => {
+            localStorage.setItem("menuTrackerState", JSON.stringify({ groups, charges, lang, currencySymbol }));
+            setAutoSaveMessage("Auto-saved");
+            setTimeout(() => setAutoSaveMessage(""), 2000);
+          }, 1000);
+          return () => clearTimeout(timeout);
+        }, [groups, charges, lang, currencySymbol]);
+
+        // Load state from Local Storage on mount.
+        React.useEffect(() => {
+          const savedState = localStorage.getItem("menuTrackerState");
+          if (savedState) {
+            const parsed = JSON.parse(savedState);
+            if (parsed.groups) setGroups(parsed.groups);
+            if (parsed.charges) setCharges(parsed.charges);
+            if (parsed.lang) setLang(parsed.lang);
+            if (parsed.currencySymbol) setCurrencySymbol(parsed.currencySymbol);
+          }
+        }, []);
+
+        // -----------------------------
+        // Save, Reset, Export, and Import Functions.
+        // -----------------------------
+        const saveState = () => {
+          localStorage.setItem("menuTrackerState", JSON.stringify({ groups, charges, lang, currencySymbol }));
+          alert("State saved!");
+          playSound();
+        };
+
+        const resetState = () => {
+          if (window.confirm("Are you sure you want to reset all data?")) {
+            localStorage.removeItem("menuTrackerState");
+            setGroups([
+              lang === "it"
+                ? { id: 1, name: "Tavolo 1", isEditingName: false, people: [{ name: "Persona 1", isEditingName: false, orders: [] }] }
+                : { id: 1, name: "Table 1", isEditingName: false, people: [{ name: "Person 1", isEditingName: false, orders: [] }] }
+            ]);
+            setCharges([{ name: "Service", percentage: 0 }, { name: "Tips", percentage: 0 }]);
+          }
+        };
+
+        const exportSessionWithTimestamp = () => {
+          const data = JSON.stringify({ groups, charges, lang, currencySymbol }, null, 2);
+          const blob = new Blob([data], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const timestampForFile = formatDate(new Date(), true);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `menuTrackerState_${timestampForFile}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+        };
+
+        const importSession = (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            try {
+              const imported = JSON.parse(evt.target.result);
+              if (imported.groups && imported.charges) {
+                setGroups(imported.groups);
+                setCharges(imported.charges);
+                if (imported.lang) setLang(imported.lang);
+                if (imported.currencySymbol) setCurrencySymbol(imported.currencySymbol);
+                alert("Session imported successfully!");
+              } else {
+                alert("Invalid session file.");
+              }
+            } catch (error) {
+              alert("Error parsing session file.");
+            }
+          };
+          reader.readAsText(file);
+        };
+
+        // -----------------------------
+        // Helper to update charges.
+        // -----------------------------
+        function updateCharge(index, value) {
+          const newCharges = [...charges];
+          newCharges[index] = { ...newCharges[index], percentage: parseFloat(value) || 0 };
+          setCharges(newCharges);
+        }
+
+        // -----------------------------
+        // Group & Person Editing Helpers.
+        // -----------------------------
+        const editGroupName = (groupId, newName) => {
+          setGroups(groups.map((group) => (group.id === groupId ? { ...group, name: newName } : group)));
+        };
+
+        const setGroupEditingState = (groupId, state) => {
+          setGroups(groups.map((group) => (group.id === groupId ? { ...group, isEditingName: state } : group)));
+        };
+
+        const editPersonName = (groupId, personIndex, newName) => {
+          setGroups(
+            groups.map((group) => {
+              if (group.id === groupId) {
+                const newPeople = [...group.people];
+                newPeople[personIndex] = { ...newPeople[personIndex], name: newName };
+                return { ...group, people: newPeople };
+              }
+              return group;
+            })
+          );
+        };
+
+        const setPersonEditingState = (groupId, personIndex, state) => {
+          setGroups(
+            groups.map((group) => {
+              if (group.id === groupId) {
+                const newPeople = [...group.people];
+                newPeople[personIndex] = { ...newPeople[personIndex], isEditingName: state };
+                return { ...group, people: newPeople };
+              }
+              return group;
+            })
+          );
+        };
+
+        // -----------------------------
+        // Group & Person Management.
+        // -----------------------------
+        const addGroup = () => {
+          setGroups([
+            ...groups,
+            lang === "it"
+              ? { id: groups.length + 1, name: "Tavolo " + (groups.length + 1), isEditingName: false, people: [{ name: "Persona 1", isEditingName: false, orders: [] }] }
+              : { id: groups.length + 1, name: "Table " + (groups.length + 1), isEditingName: false, people: [{ name: "Person 1", isEditingName: false, orders: [] }] }
+          ]);
+        };
+
+        const addPerson = (groupId) => {
+          setGroups(
+            groups.map((group) => {
+              if (group.id === groupId) {
+                if (group.people.length >= 6) {
+                  alert("Maximum 6 people per table allowed");
+                  return group;
+                }
+                return {
+                  ...group,
+                  people: [
+                    ...group.people,
+                    lang === "it"
+                      ? { name: "Persona " + (group.people.length + 1), isEditingName: false, orders: [] }
+                      : { name: "Person " + (group.people.length + 1), isEditingName: false, orders: [] }
+                  ]
+                };
+              }
+              return group;
+            })
+          );
+        };
+
+        // -----------------------------
+        // Order (Dish) Management.
+        // -----------------------------
+        const addItemToPersonLocal = (groupId, personIndex, item) => {
+          if (!item.dish || !item.price) return;
+          setGroups(
+            groups.map((group) => {
+              if (group.id === groupId) {
+                const newPeople = [...group.people];
+                newPeople[personIndex] = {
+                  ...newPeople[personIndex],
+                  orders: [
+                    ...newPeople[personIndex].orders,
+                    {
+                      ...item,
+                      sharedWith: [],
+                      quantity: item.quantity || 1,
+                      isEditing: false,
+                      // Add timestamp (dd/mm/yy hh:mm:ss)
+                      timestamp: formatDate(new Date(), false)
+                    }
+                  ]
+                };
+                return { ...group, people: newPeople };
+              }
+              return group;
+            })
+          );
+        };
+
+        const copyItemToPerson = (groupId, sourcePersonIndex, orderIndex, targetPersonIndex) => {
+          setGroups(
+            groups.map((group) => {
+              if (group.id === groupId) {
+                const newPeople = [...group.people];
+                const itemToCopy = newPeople[sourcePersonIndex].orders[orderIndex];
+                if (itemToCopy) {
+                  newPeople[targetPersonIndex] = {
+                    ...newPeople[targetPersonIndex],
+                    orders: [
+                      ...newPeople[targetPersonIndex].orders,
+                      { ...itemToCopy, timestamp: itemToCopy.timestamp }
+                    ]
+                  };
+                }
+                return { ...group, people: newPeople };
+              }
+              return group;
+            })
+          );
+        };
+
+        const removeOrder = (groupId, personIndex, orderIndex) => {
+          setGroups(
+            groups.map((group) => {
+              if (group.id === groupId) {
+                const newPeople = [...group.people];
+                newPeople[personIndex] = {
+                  ...newPeople[personIndex],
+                  orders: newPeople[personIndex].orders.filter((_, idx) => idx !== orderIndex)
+                };
+                playSound();
+                return { ...group, people: newPeople };
+              }
+              return group;
+            })
+          );
+        };
+
+        // -----------------------------
+        // Shared Items Functions.
+        // -----------------------------
+        const shareItemWithPerson = (groupId, ownerIndex, orderIndex, targetPersonIndex) => {
+          setGroups(
+            groups.map((group) => {
+              if (group.id === groupId) {
+                const newPeople = group.people.map((person, idx) => {
+                  if (idx === ownerIndex) {
+                    const newOrders = person.orders.map((order, oIdx) => {
+                      if (oIdx === orderIndex) {
+                        const sharedWith = order.sharedWith ? [...order.sharedWith] : [];
+                        if (!sharedWith.includes(targetPersonIndex) && targetPersonIndex !== ownerIndex) {
+                          sharedWith.push(targetPersonIndex);
+                        }
+                        return { ...order, sharedWith };
+                      }
+                      return order;
+                    });
+                    return { ...person, orders: newOrders };
+                  }
+                  return person;
+                });
+                return { ...group, people: newPeople };
+              }
+              return group;
+            })
+          );
+        };
+
+        const unshareItemWithPerson = (groupId, ownerIndex, orderIndex, targetPersonIndex) => {
+          setGroups(
+            groups.map((group) => {
+              if (group.id === groupId) {
+                const newPeople = group.people.map((person, idx) => {
+                  if (idx === ownerIndex) {
+                    const newOrders = person.orders.map((order, oIdx) => {
+                      if (oIdx === orderIndex) {
+                        const sharedWith = order.sharedWith ? order.sharedWith.filter((p) => p !== targetPersonIndex) : [];
+                        return { ...order, sharedWith };
+                      }
+                      return order;
+                    });
+                    return { ...person, orders: newOrders };
+                  }
+                  return person;
+                });
+                return { ...group, people: newPeople };
+              }
+              return group;
+            })
+          );
+        };
+
+        // -----------------------------
+        // Cost Calculation Helpers.
+        // -----------------------------
+        const calculateTableSubtotal = (people) => {
+          let total = 0;
+          people.forEach((person) => {
+            person.orders.forEach((order) => {
+              total += parseFloat(order.price) * (order.quantity || 1);
+            });
+          });
+          return total;
+        };
+
+        const calculatePersonSubtotal = (people, personIndex) => {
+          let total = 0;
+          people.forEach((person, ownerIndex) => {
+            person.orders.forEach((order) => {
+              const participants = order.sharedWith && order.sharedWith.length > 0 ? [ownerIndex, ...order.sharedWith] : [ownerIndex];
+              if (participants.includes(personIndex)) {
+                total += (parseFloat(order.price) * (order.quantity || 1)) / participants.length;
+              }
+            });
+          });
+          return total;
+        };
+
+        const calculateTotal = (base) => {
+          const extraCharges = charges.reduce((sum, charge) => sum + (base * charge.percentage) / 100, 0);
+          return base + extraCharges;
+        };
+
+        // -----------------------------
+        // Helper to update an existing order.
+        // -----------------------------
+        const updateOrder = (groupId, personIndex, orderIndex, newData) => {
+          setGroups(
+            groups.map((group) => {
+              if (group.id === groupId) {
+                const newPeople = [...group.people];
+                newPeople[personIndex] = {
+                  ...newPeople[personIndex],
+                  orders: newPeople[personIndex].orders.map((order, idx) => {
+                    if (idx === orderIndex) {
+                      return { ...order, ...newData };
+                    }
+                    return order;
+                  })
+                };
+                return { ...group, people: newPeople };
+              }
+              return group;
+            })
+          );
+          if (newData.isEditing === false) {
+            playSound();
+          }
+        };
+
+        // -----------------------------
+        // Generate Receipt Text Helper.
+        // -----------------------------
+        const generateReceiptText = () => {
+          let text = translations[lang].appTitle + " Receipt\n";
+          text += "---------------------------\n";
+          groups.forEach((group) => {
+            text += "Table: " + group.name + "\n";
+            text += group.people
+              .map(
+                (person, i) =>
+                  "  " + person.name + ": " + calculatePersonSubtotal(group.people, i).toFixed(2) + currencySymbol
+              )
+              .join("\n") + "\n";
+            let tableSubtotal = calculateTableSubtotal(group.people);
+            let tableExtra = charges.reduce((sum, charge) => sum + (tableSubtotal * charge.percentage) / 100, 0);
+            let tableTotal = tableSubtotal + tableExtra;
+            text += translations[lang].tableSubtotal + ": " + tableSubtotal.toFixed(2) + currencySymbol + "\n";
+            if (tableExtra > 0) {
+              text += "Extra Charges: " + tableExtra.toFixed(2) + currencySymbol + "\n";
+            }
+            text += translations[lang].tableTotal + ": " + tableTotal.toFixed(2) + currencySymbol + "\n";
+            text += "---------------------------\n";
+          });
+          let overallSubtotal = 0, overallExtra = 0, overallTotal = 0;
+          groups.forEach((group) => {
+            let tableSubtotal = calculateTableSubtotal(group.people);
+            let tableExtra = charges.reduce((sum, charge) => sum + (tableSubtotal * charge.percentage) / 100, 0);
+            overallSubtotal += tableSubtotal;
+            overallExtra += tableExtra;
+          });
+          overallTotal = overallSubtotal + overallExtra;
+          text += translations[lang].subtotal + ": " + overallSubtotal.toFixed(2) + currencySymbol + "\n";
+          text += translations[lang].extra + ": " + overallExtra.toFixed(2) + currencySymbol + "\n";
+          text += translations[lang].overallTotal + ": " + overallTotal.toFixed(2) + currencySymbol + "\n";
+          return text;
+        };
+
+        // -----------------------------
+        // Order Item Component.
+        // -----------------------------
+        function OrderItem({ groupId, personIndex, order, orderIndex, groupPeople, ownerMode, viewerIndex }) {
+          const [editData, setEditData] = React.useState({ dish: order.dish, price: order.price, quantity: order.quantity });
+          if (order.isEditing) {
+            return (
+              <div className="border p-2 rounded flex flex-col md:flex-row md:items-center md:justify-between transition duration-300 ease-in-out">
+                <div className="flex flex-col md:flex-row md:items-center gap-2">
+                  <input type="text" value={editData.dish} onChange={(e) => setEditData({ ...editData, dish: e.target.value })} className="border rounded p-1 text-xs" />
+                  <input type="number" value={editData.price} onChange={(e) => setEditData({ ...editData, price: e.target.value })} className="border rounded p-1 w-24 text-xs" />
+                  <input type="number" value={editData.quantity} onChange={(e) => setEditData({ ...editData, quantity: parseInt(e.target.value) || 1 })} className="border rounded p-1 w-20 text-xs" />
+                  <button className="text-green-600 hover:text-green-800 text-xs" onClick={() => { updateOrder(groupId, personIndex, orderIndex, { ...editData, isEditing: false }); }}>Save</button>
+                  <button className="text-red-600 hover:text-red-800 text-xs" onClick={() => { updateOrder(groupId, personIndex, orderIndex, { isEditing: false }); }}>Cancel</button>
+                </div>
+              </div>
+            );
+          }
+          const sharedPriceText = order.sharedWith && order.sharedWith.length > 0 ? (
+            <span className="text-sm text-gray-500">
+              ( {(parseFloat(order.price) * order.quantity / (1 + order.sharedWith.length)).toFixed(2)}{currencySymbol} each )
+            </span>
+          ) : null;
+          let sharedNamesLine = null;
+          if (!ownerMode && viewerIndex !== undefined) {
+            const allParticipants = [personIndex, ...(order.sharedWith || [])];
+            const displayParticipants = allParticipants.filter((idx) => idx !== viewerIndex);
+            const displayNames = displayParticipants.map((idx) => groupPeople[idx].name).join(", ");
+            sharedNamesLine = (<div className="text-xs text-gray-600 mt-1">Shared with: {displayNames}</div>);
+          }
+          return (
+            <div className="border p-2 rounded flex flex-col md:flex-row md:items-center md:justify-between transition duration-300 ease-in-out">
+              <div className="flex flex-col md:flex-row md:items-center gap-2">
+                <span className="font-semibold">
+                  {order.dish} {order.quantity > 1 ? `x${order.quantity}` : ""}
+                </span>
+                {sharedPriceText}
+                {ownerMode && (
+                  <button onClick={() => updateOrder(groupId, personIndex, orderIndex, { isEditing: true })} className="text-blue-500 hover:text-blue-700 text-xs" title="Edit order">
+                    ✏️
+                  </button>
+                )}
+                {ownerMode && (
+                  <select aria-label="Copy this dish to another person" className="border rounded p-1 text-xs" onChange={(e) => { if (e.target.value !== "") { copyItemToPerson(groupId, personIndex, orderIndex, parseInt(e.target.value)); e.target.value = ""; playSound(); } }}>
+                    <option value="">{translations[lang].addPerson}...</option>
+                    {groupPeople.map((targetPerson, targetIndex) =>
+                      targetIndex !== personIndex ? (<option key={targetIndex} value={targetIndex}>{targetPerson.name}</option>) : null
+                    )}
+                  </select>
+                )}
+                {ownerMode && (
+                  <select aria-label="Share this dish with another person" className="border rounded p-1 text-xs" onChange={(e) => { if (e.target.value !== "") { shareItemWithPerson(groupId, personIndex, orderIndex, parseInt(e.target.value)); e.target.value = ""; playSound(); } }}>
+                    <option value="">{translations[lang].shareWithOption}</option>
+                    {groupPeople.map((targetPerson, targetIndex) =>
+                      targetIndex !== personIndex && (!order.sharedWith || !order.sharedWith.includes(targetIndex)) ? (<option key={targetIndex} value={targetIndex}>{targetPerson.name}</option>) : null
+                    )}
+                  </select>
+                )}
+                {ownerMode && order.sharedWith && order.sharedWith.length > 0 && (
+                  <div className="flex gap-1">
+                    {order.sharedWith.map((pIndex, idx) => (
+                      <span key={idx} className="bg-gray-200 px-2 py-1 rounded text-xs flex items-center">
+                        {groupPeople[pIndex].name}
+                        {ownerMode && (
+                          <button className="ml-1 text-red-500 text-xs" onClick={() => unshareItemWithPerson(groupId, personIndex, orderIndex, pIndex)}>
+                            &times;
+                          </button>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {!ownerMode && sharedNamesLine}
+              </div>
+              <div className="flex items-center gap-2 mt-2 md:mt-0">
+                <span>{(parseFloat(order.price) * order.quantity).toFixed(2)}{currencySymbol}</span>
+                {ownerMode && (
+                  <button aria-label="Delete this dish" className="text-red-600 text-xs" onClick={() => { if (window.confirm("Are you sure you want to delete this item?")) { removeOrder(groupId, personIndex, orderIndex); } }}>
+                    {translations[lang].delete}
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        }
+
+        // -----------------------------
+        // Person Section Component.
+        // -----------------------------
+        function PersonSection({ groupId, person, personIndex, groupPeople }) {
+          const [isAdding, setIsAdding] = React.useState(false);
+          const [localNewItem, setLocalNewItem] = React.useState({ dish: "", price: "", quantity: 1 });
+          const [errorMsg, setErrorMsg] = React.useState("");
+          const handleAdd = () => {
+            if (!localNewItem.dish.trim() || !localNewItem.price) {
+              setErrorMsg(!localNewItem.dish.trim() ? "Dish name is required." : "Price is required.");
+              return;
+            }
+            setErrorMsg("");
+            addItemToPersonLocal(groupId, personIndex, localNewItem);
+            setLocalNewItem({ dish: "", price: "", quantity: 1 });
+            setIsAdding(false);
+          };
+          const handleKeyDownInput = (e) => {
+            if (e.key === "Enter") {
+              handleAdd();
+            } else if (e.key === "Escape") {
+              setIsAdding(false);
+              setErrorMsg("");
+            }
+          };
+          const sharedOrders = [];
+          groupPeople.forEach((p, idx) => {
+            if (idx !== personIndex) {
+              p.orders.forEach((order, oIdx) => {
+                if (order.sharedWith && order.sharedWith.includes(personIndex)) {
+                  sharedOrders.push({ ownerIndex: idx, order, orderIndex: oIdx });
+                }
+              });
+            }
+          });
+          return (
+            <div className="mb-4 border-b pb-4">
+              {person.isEditingName ? (
+                <input
+                  type="text"
+                  aria-label="Edit person name"
+                  className="font-semibold p-1 border rounded"
+                  value={(person.name === "Person 1" || person.name === "Persona 1")
+                    ? (lang === "it" ? "Persona 1" : "Person 1")
+                    : person.name}
+                  onChange={(e) => editPersonName(groupId, personIndex, e.target.value)}
+                  onBlur={() => setPersonEditingState(groupId, personIndex, false)}
+                  onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); else if (e.key === "Escape") setPersonEditingState(groupId, personIndex, false); }}
+                  autoFocus
+                />
+              ) : (
+                <h3 className="font-bold text-indigo-600 cursor-pointer flex items-center gap-2" onClick={() => setPersonEditingState(groupId, personIndex, true)}>
+                  <span role="img" aria-label="user">👤</span>
+                  {(person.name === "Person 1" || person.name === "Persona 1")
+                    ? (lang === "it" ? "Persona 1" : "Person 1")
+                    : person.name}
+                </h3>
+              )}
+              <h4 className="font-semibold mt-2">{lang === "it" ? "Il tuo ordine:" : "Your Orders:"}</h4>
+              <ul className="space-y-2 mt-2">
+                {person.orders.map((item, orderIndex) => (
+                  <li key={orderIndex}>
+                    <OrderItem groupId={groupId} personIndex={personIndex} order={item} orderIndex={orderIndex} groupPeople={groupPeople} ownerMode={true} />
+                  </li>
+                ))}
+              </ul>
+              {sharedOrders.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="font-semibold">Shared With You:</h4>
+                  <ul className="space-y-2 mt-2">
+                    {sharedOrders.map((entry, idx) => (
+                      <li key={idx}>
+                        <OrderItem groupId={groupId} personIndex={entry.ownerIndex} order={entry.order} orderIndex={entry.orderIndex} groupPeople={groupPeople} ownerMode={false} viewerIndex={personIndex} />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {isAdding ? (
+                <div className="flex flex-col gap-2 mt-2">
+                  <div className="flex gap-2 items-end">
+                    <input
+                      type="text"
+                      aria-label="Dish name"
+                      placeholder="Dish name"
+                      className={`p-2 border rounded flex-1 ${errorMsg && !localNewItem.dish.trim() ? "border-red-500" : ""}`}
+                      value={localNewItem.dish}
+                      onChange={(e) => setLocalNewItem({ ...localNewItem, dish: e.target.value })}
+                      onKeyDown={handleKeyDownInput}
+                    />
+                    <input
+                      type="number"
+                      aria-label="Dish price"
+                      placeholder={"Price " + currencySymbol}
+                      className={`w-24 p-2 border rounded ${errorMsg && !localNewItem.price ? "border-red-500" : ""}`}
+                      value={localNewItem.price}
+                      onChange={(e) => setLocalNewItem({ ...localNewItem, price: e.target.value })}
+                      onKeyDown={handleKeyDownInput}
+                    />
+                    <input
+                      type="number"
+                      aria-label="Quantity"
+                      placeholder="Qty"
+                      className="w-20 p-2 border rounded"
+                      value={localNewItem.quantity}
+                      onChange={(e) => setLocalNewItem({ ...localNewItem, quantity: parseInt(e.target.value) || 1 })}
+                      onKeyDown={handleKeyDownInput}
+                    />
+                  </div>
+                  {errorMsg && <div className="text-red-600 text-sm">{errorMsg}</div>}
+                  <div className="flex gap-2">
+                    <button className="text-blue-600 hover:text-blue-800" onClick={handleAdd} aria-label="Confirm dish addition">Confirm</button>
+                    <button className="text-red-600 hover:text-red-800" onClick={() => { setIsAdding(false); setErrorMsg(""); }} aria-label="Cancel dish addition">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <button className="mt-2 text-blue-600 hover:text-blue-800" onClick={() => setIsAdding(true)} aria-label="Add new dish">
+                  {translations[lang].addItem}
+                </button>
+              )}
+              <div className="mt-2 text-right">
+                <div>Subtotal: {calculatePersonSubtotal(groupPeople, personIndex).toFixed(2)}{currencySymbol}</div>
+                {charges.map((charge, idx) =>
+                  charge.percentage > 0 && (
+                    <div key={idx} className="text-sm text-gray-600">
+                      {lang === "it"
+                        ? (charge.name === "Service" ? "Coperto" : (charge.name === "Tips" ? "Mancia" : charge.name))
+                        : charge.name} ({charge.percentage}%): {((calculatePersonSubtotal(groupPeople, personIndex) * charge.percentage) / 100).toFixed(2)}{currencySymbol}
+                    </div>
+                  )
+                )}
+                <div className="font-bold">
+                  Total: {(calculatePersonSubtotal(groupPeople, personIndex) + charges.reduce((sum, charge) => sum + ((calculatePersonSubtotal(groupPeople, personIndex) * charge.percentage) / 100), 0)).toFixed(2)}{currencySymbol}
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        // -----------------------------
+        // Bottom Dashboard Component.
+        // -----------------------------
+        function BottomDashboard({ groups, charges, lang, currencySymbol }) {
+          const calculateDashboardTotals = () => {
+            let totalSubtotal = 0;
+            let totalExtra = 0;
+            let grandTotal = 0;
+            groups.forEach((group) => {
+              const tableSubtotal = calculateTableSubtotal(group.people);
+              const tableExtra = charges.reduce((sum, charge) => sum + (tableSubtotal * charge.percentage) / 100, 0);
+              totalSubtotal += tableSubtotal;
+              totalExtra += tableExtra;
+              grandTotal += tableSubtotal + tableExtra;
+            });
+            return { totalSubtotal, totalExtra, grandTotal };
+          };
+
+          const { totalSubtotal, totalExtra, grandTotal } = calculateDashboardTotals();
+
+          return (
+            <div className="fixed bottom-0 left-0 w-full bg-white border-t shadow-lg p-2 text-center">
+              <div className="text-sm font-bold">
+                {translations[lang].overallTotal}: {grandTotal.toFixed(2)}{currencySymbol}
+              </div>
+              <div className="text-xs text-gray-600">
+                {translations[lang].subtotal}: {totalSubtotal.toFixed(2)}{currencySymbol} | {translations[lang].extra}: {totalExtra.toFixed(2)}{currencySymbol}
+              </div>
+              <div className="mt-1">
+                <a href="mailto:cipollo@cippolo.com" className="text-[6px] text-gray-500">
+                  {translations[lang].feedback}
+                </a>
+              </div>
+            </div>
+          );
+        }
+
+        // -----------------------------
+        // Controls Panel (Collapsible)
+        // -----------------------------
+        function ControlsPanel({ onClose }) {
+          return (
+            <div className="bg-gray-100 p-2 rounded shadow-lg mt-2 flex flex-wrap gap-2 justify-center">
+              <button className="bg-green-500 text-white text-xs px-2 py-1 rounded hover:bg-green-600" onClick={saveState}>
+                {translations[lang].saveState}
+              </button>
+              <button className="bg-red-500 text-white text-xs px-2 py-1 rounded hover:bg-red-600" onClick={resetState}>
+                {translations[lang].resetState}
+              </button>
+              <button className="bg-blue-500 text-white text-xs px-2 py-1 rounded hover:bg-blue-600" onClick={() => setShowReceipt(true)}>
+                {translations[lang].viewReceipt}
+              </button>
+              <button className="bg-gray-500 text-white text-xs px-2 py-1 rounded hover:bg-gray-600" onClick={() => setShowSettings(true)}>
+                {translations[lang].settings}
+              </button>
+              <button className="bg-purple-500 text-white text-xs px-2 py-1 rounded hover:bg-purple-600" onClick={exportSessionWithTimestamp}>
+                {translations[lang].exportSession}
+              </button>
+              <button className="bg-yellow-500 text-black text-xs px-2 py-1 rounded hover:bg-yellow-600" onClick={() => { if (fileInputRef.current) { fileInputRef.current.click(); } }}>
+                {translations[lang].importSession}
+              </button>
+            </div>
+          );
+        }
+
+        // -----------------------------
+        // Main Render.
+        // -----------------------------
+        return (
+          <div className="p-4 max-w-4xl mx-auto pb-32">
+            {showOnboarding && (
+              <OnboardingModal onClose={() => { setShowOnboarding(false); localStorage.setItem("hasSeenOnboarding", "true"); }} lang={lang} />
+            )}
+            {showSettings && (
+              <SettingsModal lang={lang} setLang={setLang} currencySymbol={currencySymbol} setCurrencySymbol={setCurrencySymbol} onClose={() => setShowSettings(false)} />
+            )}
+            <input type="file" accept="application/json" ref={fileInputRef} style={{ display: "none" }} onChange={importSession} />
+            <div className="relative mb-4">
+              <h1 className="text-2xl font-bold text-center">{translations[lang].appTitle}</h1>
+              <button className="absolute top-0 right-0 p-2" onClick={() => setShowControls((prev) => !prev)} aria-label="Toggle Controls">
+                <span className="text-2xl">{translations[lang].controlsToggle}</span>
+              </button>
+            </div>
+            {showControls && <ControlsPanel onClose={() => setShowControls(false)} />}
+            <div className="mb-6 space-y-4">
+              <div className="text-sm text-gray-600 mb-2 text-center">{translations[lang].instructions}</div>
+              <div className="flex flex-wrap gap-4 justify-center">
+                {charges.map((charge, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <span>
+                      {lang === "it"
+                        ? (charge.name === "Service" ? "Coperto" : (charge.name === "Tips" ? "Mancia" : charge.name))
+                        : charge.name}
+                      :
+                    </span>
+                    <input
+                      type="number"
+                      aria-label={`${charge.name} percentage`}
+                      className="w-16 p-2 border rounded text-xs"
+                      placeholder="%"
+                      value={charge.percentage}
+                      onChange={(e) => updateCharge(index, e.target.value)}
+                    />
+                    <span>%</span>
+                  </div>
+                ))}
+              </div>
+              <div className="text-sm text-gray-600 italic text-center">
+                {lang === "it" ? "Massimo 6 persone per tavolo." : "A table-unit must be 6 people max."}
+              </div>
+            </div>
+            <div className="space-y-6">
+              {groups.map((group) => (
+                <div key={group.id} className="border p-4 rounded">
+                  {group.isEditingName ? (
+                    <input
+                      type="text"
+                      aria-label="Edit table name"
+                      className="text-xl font-bold p-1 border rounded"
+                      value={(group.name === "Table 1" || group.name === "Tavolo 1") ? (lang === "it" ? "Tavolo 1" : "Table 1") : group.name}
+                      onChange={(e) => editGroupName(group.id, e.target.value)}
+                      onBlur={() => setGroupEditingState(group.id, false)}
+                      onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); else if (e.key === "Escape") setGroupEditingState(group.id, false); }}
+                      autoFocus
+                    />
+                  ) : (
+                    <h2 className="text-xl font-bold mb-2 cursor-pointer flex items-center" onClick={() => setGroupEditingState(group.id, true)}>
+                      <span className="mr-2" role="img" aria-label="table">🍽️</span>
+                      {(group.name === "Table 1" || group.name === "Tavolo 1") ? (lang === "it" ? "Tavolo 1" : "Table 1") : group.name}
+                    </h2>
+                  )}
+                  {group.people.map((person, personIndex) => (
+                    <PersonSection key={personIndex} groupId={group.id} person={person} personIndex={personIndex} groupPeople={group.people} />
+                  ))}
+                  {(() => {
+                    const tableSubtotal = calculateTableSubtotal(group.people);
+                    const tableExtra = charges.reduce((sum, charge) => sum + (tableSubtotal * charge.percentage) / 100, 0);
+                    const tableTotal = (tableSubtotal + tableExtra).toFixed(2);
+                    return (
+                      <div className="mt-4 text-right border-t pt-2">
+                        <div>{translations[lang].tableSubtotal}: {tableSubtotal.toFixed(2)}{currencySymbol}</div>
+                        {charges.map((charge, idx) =>
+                          charge.percentage > 0 && (
+                            <div key={idx} className="text-sm text-gray-600">
+                              {lang === "it" ? (charge.name === "Service" ? "Coperto" : (charge.name === "Tips" ? "Mancia" : charge.name)) : charge.name} ({charge.percentage}%): {((tableSubtotal * charge.percentage) / 100).toFixed(2)}{currencySymbol}
+                            </div>
+                          )
+                        )}
+                        <div className="font-bold">{translations[lang].tableTotal}: {tableTotal}{currencySymbol}</div>
+                      </div>
+                    );
+                  })()}
+                  <button className="text-green-600 hover:text-green-800 mt-2 text-xs" onClick={() => addPerson(group.id)} aria-label={translations[lang].addPerson}>
+                    {translations[lang].addPerson}
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-xs" onClick={addGroup} aria-label={translations[lang].addTable}>
+              {translations[lang].addTable}
+            </button>
+            <div className="mt-8 text-center text-gray-600 text-sm">
+              This calculator app is offered by{" "}
+              <a href="http://wrgm.cc/IFWII" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
+                "Italian food and wine in Ireland"
+              </a>{" "}
+              &amp;{" "}
+              <a href="http://wrgm.cc/FFA" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
+                "Fun Food Adventures"
+              </a>{" "}
+              Meetups
+            </div>
+            <BottomDashboard groups={groups} charges={charges} lang={lang} currencySymbol={currencySymbol} />
+          </div>
+        );
+      }
+
+      // Updated ControlsPanel using exportSessionWithTimestamp.
+      function ControlsPanel({ onClose }) {
+        return (
+          <div className="bg-gray-100 p-2 rounded shadow-lg mt-2 flex flex-wrap gap-2 justify-center">
+            <button className="bg-green-500 text-white text-xs px-2 py-1 rounded hover:bg-green-600" onClick={saveState}>
+              {translations[lang].saveState}
+            </button>
+            <button className="bg-red-500 text-white text-xs px-2 py-1 rounded hover:bg-red-600" onClick={resetState}>
+              {translations[lang].resetState}
+            </button>
+            <button className="bg-blue-500 text-white text-xs px-2 py-1 rounded hover:bg-blue-600" onClick={() => setShowReceipt(true)}>
+              {translations[lang].viewReceipt}
+            </button>
+            <button className="bg-gray-500 text-white text-xs px-2 py-1 rounded hover:bg-gray-600" onClick={() => setShowSettings(true)}>
+              {translations[lang].settings}
+            </button>
+            <button className="bg-purple-500 text-white text-xs px-2 py-1 rounded hover:bg-purple-600" onClick={exportSessionWithTimestamp}>
+              {translations[lang].exportSession}
+            </button>
+            <button className="bg-yellow-500 text-black text-xs px-2 py-1 rounded hover:bg-yellow-600" onClick={() => { if (fileInputRef.current) { fileInputRef.current.click(); } }}>
+              {translations[lang].importSession}
+            </button>
+          </div>
+        );
+      }
+
+      ReactDOM.render(<MenuTracker />, document.getElementById("root"));
+    </script>
+  </body>
+</html>
